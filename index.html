@@ -1,0 +1,221 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Privacy-Preserving Age Token</title>
+    <!-- Import SnarkJS from CDN -->
+    <script src="https://cdn.jsdelivr.net/npm/snarkjs@0.7.0/build/snarkjs.min.js"></script>
+    <style>
+        body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; background-color: #f4f4f9; display: flex; justify-content: center; align-items: center; height: 100vh; margin: 0; }
+        .card { background: white; padding: 2rem; border-radius: 12px; box-shadow: 0 4px 6px rgba(0,0,0,0.1); width: 100%; max-width: 400px; text-align: center; }
+        h1 { color: #333; font-size: 1.5rem; margin-bottom: 1rem; }
+        p { color: #666; font-size: 0.9rem; margin-bottom: 1.5rem; }
+        input { width: 80%; padding: 10px; margin-bottom: 15px; border: 1px solid #ddd; border-radius: 6px; font-size: 1rem; }
+        button { background-color: #007bff; color: white; border: none; padding: 10px 20px; border-radius: 6px; font-size: 1rem; cursor: pointer; transition: background 0.3s; width: 100%; }
+        button:hover { background-color: #0056b3; }
+        button:disabled { background-color: #ccc; cursor: not-allowed; }
+        .log { margin-top: 20px; font-size: 0.85rem; color: #555; text-align: left; background: #eee; padding: 10px; border-radius: 6px; display: none; }
+        .success { color: green; font-weight: bold; margin-top: 10px; }
+        .error { color: red; font-weight: bold; margin-top: 10px; }
+        .token-box { word-break: break-all; margin-top: 10px; font-family: monospace; font-size: 0.8rem; background: #e8f5e9; padding: 10px; border: 1px solid #c8e6c9; border-radius: 4px; display: none; }
+    </style>
+</head>
+<body>
+
+    <div class="card">
+        <h1>🔐 Zero-Knowledge Verification</h1>
+        <p>Prove you are 18+ without revealing your birth year.</p>
+
+        <!-- UPDATED INPUT: We removed the hardcoded 'value'. It is now set by JS below. -->
+        <input type="number" id="birthYear" min="1900" step="1" placeholder="Enter your Birth Year">
+        
+        <button id="verifyBtn" onclick="generateAndVerify()">Generate Proof & Login</button>
+
+        <div id="statusMessage"></div>
+        <div id="tokenDisplay" class="token-box"></div>
+        
+        <!-- NEW BUTTON: Only appears after login -->
+        <button id="vipBtn" onclick="accessSecretArea()" style="display:none; margin-top: 15px; background-color: #28a745;">
+            🔓 Enter VIP Area
+        </button>
+
+        <div id="logArea" class="log"></div>
+    </div>
+
+    <script>
+       
+        let globalUserToken = null;
+
+      
+        const currentSystemYear = new Date().getFullYear();
+        
+        const inputField = document.getElementById('birthYear');
+        inputField.max = currentSystemYear;
+        
+        inputField.value = currentSystemYear - 20;
+
+       
+        document.getElementById("birthYear").addEventListener("input", function() {
+            globalUserToken = null;                                       
+            document.getElementById("vipBtn").style.display = "none";    
+            document.getElementById("statusMessage").innerHTML = "";      
+            document.getElementById("tokenDisplay").style.display = "none"; 
+        });
+        
+
+        
+        function log(msg) {
+            const logArea = document.getElementById("logArea");
+            logArea.style.display = "block";
+            logArea.innerHTML += `> ${msg}<br>`;
+            console.log(msg);
+        }
+
+        async function generateAndVerify() {
+            const birthYearInput = document.getElementById("birthYear").value;
+            const btn = document.getElementById("verifyBtn");
+            const statusMsg = document.getElementById("statusMessage");
+            const tokenDisplay = document.getElementById("tokenDisplay");
+            
+            if (!birthYearInput) {
+                alert("Please enter a birth year.");
+                return;
+            }
+
+            
+            statusMsg.innerHTML = "";
+            tokenDisplay.style.display = "none";
+            document.getElementById("logArea").innerHTML = "";
+            btn.disabled = true;
+            btn.innerText = "⏳ Generating Proof...";
+
+            try {
+                
+                const currentYear = currentSystemYear;
+                const ageThreshold = 18;
+                const birthYear = parseInt(birthYearInput);
+
+                
+                if (birthYear > currentYear) {
+                    throw new Error(`Birth year cannot be in the future! (You entered ${birthYear})`);
+                }
+                if (currentYear - birthYear > 120) {
+                     throw new Error("Age is too high for this verification.");
+                }
+                if (birthYear < 1900) {
+                    throw new Error("Birth year must be 1900 or later.");
+                }
+               
+
+                
+                log("Loading Circuit (WASM) & Keys...");
+                
+                let proof, publicSignals;
+
+                try {
+                    ({ proof, publicSignals } = await snarkjs.groth16.fullProve(
+                        { 
+                            birthYear: birthYear, 
+                            currentYear: currentYear, 
+                            ageThreshold: ageThreshold 
+                        },
+                        "age_check_js/age_check.wasm", 
+                        "age_check_final.zkey"         
+                    ));
+                } catch (snarkError) {
+                    console.error("SnarkJS Error:", snarkError);
+                    if (snarkError.message.includes("fetch") || snarkError.message.includes("parse URL") || snarkError.message.includes("NetworkError")) {
+                         throw new Error(
+                            "Cannot load circuit files. \n\n" +
+                            "IMPORTANT: You must run 'node server.js' and open 'http://localhost:3000'.\n" +
+                            "This code cannot run in a preview window because it needs to download the .wasm and .zkey files from your local server."
+                        );
+                    }
+                    throw snarkError; 
+                }
+
+                log("Proof Generated Successfully! 🛡️");
+                log(`Public Output: ${publicSignals[0] === "1" ? "Adult (1)" : "Minor (0)"}`);
+
+                log("Sending Proof to Server for verification...");
+
+                const response = await fetch("http://localhost:3000/verify-age", {
+                    method: "POST",
+                    headers: { "Content-Type": "application/json" },
+                    body: JSON.stringify({ proof, publicSignals })
+                });
+
+                const result = await response.json();
+
+                if (result.success) {
+                    statusMsg.className = "success";
+                    statusMsg.innerText = "✅ Verification Success!";
+                    log("Server validated the proof.");
+                    
+                    
+                    tokenDisplay.style.display = "block";
+                    tokenDisplay.innerHTML = `<strong>Received Age Token (JWT):</strong><br>${result.token}`;
+
+                    
+                    globalUserToken = result.token;
+                    document.getElementById("vipBtn").style.display = "block";
+
+                } else {
+                    statusMsg.className = "error";
+                    statusMsg.innerText = `❌ ${result.message}`;
+                    log("Server rejected the proof.");
+                }
+
+            } catch (err) {
+                console.error(err);
+                statusMsg.className = "error";
+                statusMsg.innerText = "❌ Error occurred.";
+                log(`Error: ${err.message.replace(/\n/g, "<br>")}`);
+            } finally {
+                btn.disabled = false;
+                btn.innerText = "Generate Proof & Login";
+            }
+        }
+
+        
+        async function accessSecretArea() {
+            if (!globalUserToken) return alert("No token found! Login first.");
+
+            log("Attempting to access VIP Area...");
+            
+            try {
+                const response = await fetch("http://localhost:3000/secret-content", {
+                    method: "GET",
+                    headers: {
+                        "Authorization": `Bearer ${globalUserToken}`
+                    }
+                });
+
+                
+                if (!response.ok) {
+                    const text = await response.text();
+                    if (response.status === 404 || text.includes("Cannot GET")) {
+                         throw new Error("SERVER ERROR (404): The server doesn't have the VIP code loaded. Please restart 'node server.js'!");
+                    }
+                    throw new Error(`Server returned status ${response.status}: ${text}`);
+                }
+
+                const data = await response.json();
+                
+                if (data.success) {
+                    alert(data.message);
+                    log("✅ ACCESS GRANTED: " + data.message);
+                } else {
+                    alert(data.message);
+                    log("❌ ACCESS DENIED: " + data.message);
+                }
+            } catch (error) {
+                console.error(error);
+                log("❌ ERROR: " + error.message);
+                alert(error.message);
+            }
+        }
+    </script>
+</body>
+</html>
