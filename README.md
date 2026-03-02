@@ -1,94 +1,145 @@
-# 🔐 Zero-Knowledge Age Verification App
+<!-- ===================================================== -->
+<!-- CYBER-THEMED ZERO-KNOWLEDGE AGE VERIFICATION README  -->
+<!-- ===================================================== -->
 
-## 📝 Overview
-This is a full-stack Cybersecurity application designed to facilitate age verification without the disclosure of Personally Identifiable Information (PII). By leveraging **Zero-Knowledge Proofs (zk-SNARKs)**, the system allows a user to prove they meet a specific age threshold (e.g., $\ge 18$) to a server without ever transmitting their actual birth year.
+<h1 align="center">
+  🔐 Zero-Knowledge Age Verification System
+</h1>
 
-Instead of sending sensitive data to a backend database, the app generates a cryptographic proof locally within the browser, ensuring that sensitive user data never leaves the client-side environment.
+<p align="center">
+  <img src="https://readme-typing-svg.demolab.com?font=Fira+Code&size=22&duration=2500&pause=800&color=00FF41&center=true&vCenter=true&width=750&lines=Privacy+is+a+Right.;Zero-Knowledge+Proof+Powered.;No+PII.+No+Database+Storage.;Mathematics+%3E+Trust." />
+</p>
 
----
-
-## ✨ Features
-
-* **🛡️ Client-Side Proving:** Uses WebAssembly (WASM) to generate Groth16 proofs directly in the user's browser, ensuring data privacy at the source.
-* **🧮 Cryptographic Verification:** A Node.js backend mathematically verifies the proof against a pre-generated Verification Key without ever seeing the original input.
-* **🎟️ Stateless Authorization:** Issues a JSON Web Token (JWT) upon successful verification to grant access to restricted application routes ("VIP Area").
-* **🚫 State Leakage Protection:** Implements active event listeners that instantly destroy active JWTs and revoke UI access if the user attempts to modify inputs after verification.
-
----
-
-## 🚀 How It Works
-
-1.  **Input:** The user enters their birth year (e.g., $2000$) locally.
-2.  **Local Circuit:** A pre-compiled `.wasm` circuit calculates the logic: 
-    $$\text{Current Year} - \text{Birth Year} \ge 18$$
-3.  **Proof Generation:** SnarkJS generates a proof payload. The raw birth year is discarded immediately and never leaves the client.
-4.  **Verification:** The payload is sent via POST to `/verify-age`. The server checks the proof against `verification_key.json`.
-5.  **Access:** If valid, the server returns a JWT. The client uses this as a Bearer token to access the protected `GET /secret-content` endpoint.
-
-
+<p align="center">
+  <img src="https://img.shields.io/badge/zkSNARK-Groth16-00FF41?style=for-the-badge&logo=protonvpn&logoColor=black"/>
+  <img src="https://img.shields.io/badge/Circom-2.0-black?style=for-the-badge"/>
+  <img src="https://img.shields.io/badge/Node.js-Backend-00FF41?style=for-the-badge&logo=node.js&logoColor=black"/>
+  <img src="https://img.shields.io/badge/Privacy-First-00FF41?style=for-the-badge"/>
+</p>
 
 ---
 
-## 🛠️ Tech Stack
+## 🧠 Overview
+
+A full-stack cryptographic application that proves:
+
+> ✅ "I am 18 or older"  
+> ❌ Without revealing birth year  
+> ❌ Without storing PII  
+> ❌ Without trusting the server  
+
+The proof is generated **locally in the browser** using zk-SNARKs and verified mathematically by the backend.
+
+---
+
+# ⚙️ System Flow
+
+```mermaid
+flowchart LR
+A[User Inputs Birth Year] --> B[WASM Circuit Executes]
+B --> C[Groth16 Proof Generated]
+C --> D[POST /verify-age]
+D --> E[Server Verifies Proof]
+E --> F[JWT Issued]
+F --> G[Access VIP Endpoint]
+```
+
+---
+
+# 🔐 Cryptographic Logic
+
+The circuit computes:
+
+```
+CurrentYear - BirthYear ≥ 18
+```
+
+But the **BirthYear never leaves the client**.
+
+Only a proof is transmitted.
+
+Mathematics replaces trust.
+
+---
+
+# ✨ Core Security Features
+
+### 🛡️ Client-Side Proving
+- WebAssembly (WASM) execution  
+- No sensitive data transmission  
+
+### 🧮 Mathematical Verification
+- Groth16 protocol via SnarkJS  
+- Verification Key stored server-side  
+
+### 🎟️ Stateless Authorization
+- JWT issued only after valid proof  
+- Bearer token required for protected routes  
+
+### 🚫 State Manipulation Protection
+- Event listeners detect input tampering  
+- JWT auto-destroyed on modification attempt  
+
+---
+
+# 🏗️ Tech Stack
 
 | Layer | Technology |
-| :--- | :--- |
-| **Circuit Logic** | Circom 2.0 |
-| **Cryptography** | SnarkJS (Groth16 Protocol) |
-| **Backend** | Node.js, Express.js |
-| **Authentication** | JSON Web Tokens (jsonwebtoken) |
-| **Frontend** | Vanilla HTML / JS / CSS |
+|-------|------------|
+| Circuit | Circom 2.0 |
+| Proof System | SnarkJS (Groth16) |
+| Backend | Node.js + Express |
+| Auth | JSON Web Tokens |
+| Frontend | Vanilla JS / HTML / CSS |
+| Execution | WebAssembly (WASM) |
 
 ---
 
-## 📦 Getting Started
-
-### Prerequisites
-* **Node.js** (v16 or higher recommended)
-* **Modern Web Browser** with WASM support (Chrome, Firefox, Edge, etc.)
-
-### Quick Start
-To launch the application using the pre-compiled circuits:
+# 🚀 Quick Deployment
 
 ```bash
 # Install dependencies
 npm install
 
-# Start the server
+# Start backend server
 node server.js
+```
 
-The application will be available at: http://localhost:3000
+Visit:
 
-🧠 Circuit Compilation (Optional)
-If you wish to modify the ZK logic, you will need to recompile the Circom circuit and generate new keys. You must have circom installed globally on your system.
+```
+http://localhost:3000
+```
 
-1. Compile the circuit:
+---
 
-Bash
-circom age_check.circom --r1cs --wasm --sym
-2. Setup Groth16 & Powers of Tau (Demo purposes only):
+# ⚠️ Production Considerations
 
-Bash
-# Start ceremony
-npx snarkjs powersoftau new bn128 12 pot12_0000.ptau -v
-npx snarkjs powersoftau prepare phase2 pot12_0000.ptau pot12_final.ptau -v
+## 🔮 Oracle Problem
+Currently accepts manual birth year input.
 
-# Generate ZKey
-npx snarkjs groth16 setup age_check.r1cs pot12_final.ptau age_check_0000.zkey
-npx snarkjs zkey contribute age_check_0000.zkey age_check_final.zkey --name="1st Contributor" -v
-3. Export Verification Key:
+Production version should integrate:
+- Verifiable Credentials (VC)
+- Government-issued digital identity
+- DID-based identity proofs
 
-Bash
-npx snarkjs zkey export verificationkey age_check_final.zkey verification_key.json
-⚠️ Limitations & Future Work
-The Oracle Problem: Currently, the user manually types their birth year. In a production environment, this would be replaced by a Verifiable Credential (VC) or a digitally signed ID to prevent manual falsification of inputs.
+## 🔐 Trusted Setup Risk
+Requires proper Multi-Party Computation (MPC) ceremony  
+to eliminate toxic waste.
 
-Trusted Setup: This project uses a basic local setup. Production-grade applications require a Multi-Party Computation (MPC) ceremony to ensure the cryptographic "toxic waste" (randomness) is securely destroyed.
+---
 
-📄 License
-This project is open-source and available under the MIT License.
+# 📜 License
 
-Developed by Sarthak Suman
-This project is open-source and available under the MIT License.
+MIT License
 
-Developed by Sarthak Suman
+---
+
+<p align="center">
+  <img src="https://capsule-render.vercel.app/api?type=waving&color=00FF41&height=120&section=footer"/>
+</p>
+
+<p align="center">
+  <b>Developed by Sarthak Suman</b><br>
+  Building Privacy-First Cybersecurity Systems ⚡
+</p>
