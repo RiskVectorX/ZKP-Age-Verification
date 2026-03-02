@@ -58,15 +58,15 @@ npm install
 node server.js
 
 The application will be available at: http://localhost:3000
----
-## 🧠 Circuit Compilation (Optional)
-If you wish to modify the ZK logic, you will need to recompile the Circom circuit and generate new keys. You must have circom installed globally.
 
-Compile the circuit:
+🧠 Circuit Compilation (Optional)
+If you wish to modify the ZK logic, you will need to recompile the Circom circuit and generate new keys. You must have circom installed globally on your system.
+
+1. Compile the circuit:
 
 Bash
 circom age_check.circom --r1cs --wasm --sym
-Setup Groth16 & Powers of Tau (Demo purposes only):
+2. Setup Groth16 & Powers of Tau (Demo purposes only):
 
 Bash
 # Start ceremony
@@ -76,16 +76,19 @@ npx snarkjs powersoftau prepare phase2 pot12_0000.ptau pot12_final.ptau -v
 # Generate ZKey
 npx snarkjs groth16 setup age_check.r1cs pot12_final.ptau age_check_0000.zkey
 npx snarkjs zkey contribute age_check_0000.zkey age_check_final.zkey --name="1st Contributor" -v
-Export Verification Key:
+3. Export Verification Key:
 
 Bash
 npx snarkjs zkey export verificationkey age_check_final.zkey verification_key.json
 ⚠️ Limitations & Future Work
-The Oracle Problem: Currently, the user manually types their birth year. In production, this would be replaced by a Verifiable Credential (VC) or digitally signed ID to prevent manual falsification.
+The Oracle Problem: Currently, the user manually types their birth year. In a production environment, this would be replaced by a Verifiable Credential (VC) or a digitally signed ID to prevent manual falsification of inputs.
 
-Trusted Setup: This project uses a basic local setup. Production apps require a Multi-Party Computation (MPC) ceremony to ensure the "toxic waste" (randomness) is destroyed.
+Trusted Setup: This project uses a basic local setup. Production-grade applications require a Multi-Party Computation (MPC) ceremony to ensure the cryptographic "toxic waste" (randomness) is securely destroyed.
 
 📄 License
+This project is open-source and available under the MIT License.
+
+Developed by Sarthak Suman
 This project is open-source and available under the MIT License.
 
 Developed by Sarthak Suman
